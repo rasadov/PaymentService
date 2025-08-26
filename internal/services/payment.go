@@ -1,6 +1,9 @@
 package services
 
-import "github.com/rasadov/PaymentService/internal/db"
+import (
+	"github.com/rasadov/PaymentService/internal/db"
+	"github.com/rasadov/PaymentService/internal/dto"
+)
 
 type paymentService struct {
 	storage db.Storage
@@ -22,5 +25,6 @@ func (p *paymentService) GetSubscriptionStatus() (string, error) {
 	return "", nil
 }
 
-func (p *paymentService) HandleWebhook() {
+func (p *paymentService) SendWebhookDataToService(payload dto.DodoWebhookPayload) error {
+	return nil
 }

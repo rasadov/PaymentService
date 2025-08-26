@@ -10,10 +10,11 @@ import (
 var settings Config
 
 type Config struct {
-	DodoWebhookSecret string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
-	DodoAPIKey        string `envconfig:"DODO_API_KEY" required:"true"`
-	DodoCheckoutURL   string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
-	KVNamespace       string `envconfig:"KV_NAMESPACE" required:"true"`
+	PaymentCallbackUrl string `envconfig:"PAYMENT_CALLBACK_URL" required:"true"`
+	DodoWebhookSecret  string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
+	DodoAPIKey         string `envconfig:"DODO_API_KEY" required:"true"`
+	DodoCheckoutURL    string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
+	KVNamespace        string `envconfig:"KV_NAMESPACE" required:"true"`
 }
 
 func LoadConfig() error {
@@ -31,6 +32,9 @@ func GetConfig() Config {
 }
 
 func (c Config) validate() error {
+	if !isValidURL(c.PaymentCallbackUrl) {
+		return fmt.Errorf("PAYMENT_CALLBACK_URL is invalid: %s", c.PaymentCallbackUrl)
+	}
 	if !isValidURL(c.DodoCheckoutURL) {
 		return fmt.Errorf("DODO_CHECKOUT_URL is invalid: %s", c.DodoCheckoutURL)
 	}

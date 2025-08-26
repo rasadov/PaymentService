@@ -7,8 +7,8 @@ func SetupRoutes(
 	payment PaymentHandler) {
 
 	router := engine.Group("/payment")
-	router.GET("/create-checkout-session", payment.CreateCheckoutSession)
-	router.GET("/subscription-management-link", payment.GetSubscriptionManagementLink)
-	router.GET("/subscription-status", payment.GetSubscriptionStatus)
+	router.GET("/checkout", payment.CreateCheckoutSession)
+	router.GET("/subscriptions", payment.GetSubscriptionManagementLink)
+	router.GET("/status/:user_id", payment.GetSubscriptionStatus)
 	router.POST("/webhook", payment.HandleWebhook)
 }
