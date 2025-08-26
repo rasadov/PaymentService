@@ -2,35 +2,79 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
-
-	"github.com/kelseyhightower/envconfig"
 )
 
 var settings Config
 
 type Config struct {
-	Environment             string `envconfig:"ENVIRONMENT" default:"development"`
-	PaymentCallbackUrl      string `envconfig:"PAYMENT_CALLBACK_URL" required:"true"`
-	DodoWebhookSecret       string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
-	DodoAPIKey              string `envconfig:"DODO_API_KEY" required:"true"`
-	DodoCheckoutURL         string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
-	DodoCheckoutRedirectUrl string `envconfig:"DODO_CHECKOUT_REDIRECT_URL" required:"true"`
-	KVNamespace             string `envconfig:"KV_NAMESPACE" required:"true"`
+	Environment             string
+	PaymentCallbackUrl      string
+	DodoWebhookSecret       string
+	DodoAPIKey              string
+	DodoCheckoutURL         string
+	DodoCheckoutRedirectUrl string
+	KVNamespace             string
 }
 
 func LoadConfig() error {
-	if err := envconfig.Process("", &settings); err != nil {
-		return fmt.Errorf("failed to load config from environment: %w", err)
+	config := Config{
+		Environment:             getEnvWithDefault("ENVIRONMENT", "development"),
+		PaymentCallbackUrl:      getEnvRequired("PAYMENT_CALLBACK_URL"),
+		DodoWebhookSecret:       getEnvRequired("DODO_WEBHOOK_SECRET"),
+		DodoAPIKey:              getEnvRequired("DODO_API_KEY"),
+		DodoCheckoutURL:         getEnvRequired("DODO_CHECKOUT_URL"),
+		DodoCheckoutRedirectUrl: getEnvRequired("DODO_CHECKOUT_REDIRECT_URL"),
+		KVNamespace:             getEnvRequired("KV_NAMESPACE"),
 	}
-	if err := settings.validate(); err != nil {
+
+	// Check for missing required environment variables
+	var missingVars []string
+	if config.PaymentCallbackUrl == "" {
+		missingVars = append(missingVars, "PAYMENT_CALLBACK_URL")
+	}
+	if config.DodoWebhookSecret == "" {
+		missingVars = append(missingVars, "DODO_WEBHOOK_SECRET")
+	}
+	if config.DodoAPIKey == "" {
+		missingVars = append(missingVars, "DODO_API_KEY")
+	}
+	if config.DodoCheckoutURL == "" {
+		missingVars = append(missingVars, "DODO_CHECKOUT_URL")
+	}
+	if config.DodoCheckoutRedirectUrl == "" {
+		missingVars = append(missingVars, "DODO_CHECKOUT_REDIRECT_URL")
+	}
+	if config.KVNamespace == "" {
+		missingVars = append(missingVars, "KV_NAMESPACE")
+	}
+
+	if len(missingVars) > 0 {
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missingVars, ", "))
+	}
+
+	if err := config.validate(); err != nil {
 		return fmt.Errorf("config validation failed: %w", err)
 	}
+
+	settings = config
 	return nil
 }
 
 func GetConfig() Config {
 	return settings
+}
+
+func getEnvRequired(key string) string {
+	return os.Getenv(key)
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func (c Config) validate() error {

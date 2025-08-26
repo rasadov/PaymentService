@@ -1,9 +1,9 @@
 package handler
 
-import "github.com/gin-gonic/gin"
+import "net/http"
 
 type PaymentHandler interface {
-	CreateCheckoutSession(c *gin.Context)
-	GetSubscriptionManagementLink(c *gin.Context)
-	HandleWebhook(c *gin.Context)
+	CreateCheckoutSession(w http.ResponseWriter, r *http.Request)
+	GetSubscriptionManagementLink(w http.ResponseWriter, r *http.Request)
+	HandleWebhook(w http.ResponseWriter, r *http.Request)
 }

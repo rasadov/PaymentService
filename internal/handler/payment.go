@@ -2,9 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/rasadov/PaymentService/internal/dto"
 	"github.com/rasadov/PaymentService/internal/services"
 	"github.com/rasadov/PaymentService/pkg"
@@ -18,62 +18,97 @@ func NewPaymentHandler(service services.PaymentService) PaymentHandler {
 	return &paymentHandler{service: service}
 }
 
-func (h *paymentHandler) CreateCheckoutSession(c *gin.Context) {
+func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var request dto.GetCheckoutUrlRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(body, &request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	url := h.service.CreateCheckoutSession(request.Email, request.Name, request.ProductID)
-	c.JSON(http.StatusOK, gin.H{"url": url})
+	response := map[string]string{"url": url}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func (h *paymentHandler) GetSubscriptionManagementLink(c *gin.Context) {
+func (h *paymentHandler) GetSubscriptionManagementLink(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var request dto.GetSubscriptionManagementLinkRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(body, &request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	url, err := h.service.GetSubscriptionManagementLink(request.CustomerId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get subscription management link"})
+		http.Error(w, "Failed to get subscription management link", http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"url": url})
+
+	response := map[string]string{"url": url}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func (h *paymentHandler) HandleWebhook(c *gin.Context) {
-	body, err := c.GetRawData()
+func (h *paymentHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
 	var payload dto.DodoWebhookPayload
 	if err = json.Unmarshal(body, &payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		http.Error(w, "Invalid webhook payload", http.StatusBadRequest)
 		return
 	}
 
-	signature := c.GetHeader("webhook-signature")
+	signature := r.Header.Get("webhook-signature")
 	if pkg.VerifyWebhookSignature(signature, body) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid webhook signature"})
+		http.Error(w, "Invalid webhook signature", http.StatusUnauthorized)
 		return
 	}
 
-	webhookId := c.GetHeader("webhook-id")
+	webhookId := r.Header.Get("webhook-id")
 	if webhookId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing webhook-id header"})
+		http.Error(w, "Missing webhook-id header", http.StatusBadRequest)
 		return
 	}
 
 	err = h.service.SendWebhookDataToService(webhookId, payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		http.Error(w, "Failed to process webhook", http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed"})
+	response := map[string]string{"message": "Webhook processed"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

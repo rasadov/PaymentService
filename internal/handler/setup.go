@@ -1,13 +1,12 @@
 package handler
 
-import "github.com/gin-gonic/gin"
+import "net/http"
 
 func SetupRoutes(
-	engine *gin.Engine,
+	mux *http.ServeMux,
 	payment PaymentHandler) {
 
-	router := engine.Group("/payment")
-	router.GET("/checkout", payment.CreateCheckoutSession)
-	router.GET("/subscriptions", payment.GetSubscriptionManagementLink)
-	router.POST("/webhook", payment.HandleWebhook)
+	mux.HandleFunc("/checkout", payment.CreateCheckoutSession)
+	mux.HandleFunc("/subscriptions", payment.GetSubscriptionManagementLink)
+	mux.HandleFunc("/webhook", payment.HandleWebhook)
 }

@@ -2,42 +2,67 @@ package payments
 
 import (
 	"context"
-
-	"github.com/dodopayments/dodopayments-go"
-	"github.com/dodopayments/dodopayments-go/option"
-	"github.com/rasadov/PaymentService/internal/config"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 )
 
-type PaymentClient interface {
-	GetCustomerPortalSession(ctx context.Context, customerId string) (string, error)
-}
-
 type DodoClient struct {
-	client        *dodopayments.Client
-	webhookSecret string
+	apiKey  string
+	baseUrl string
+	client  *http.Client
 }
 
-func NewDodoClient(apiKey string, webhookSecret string) PaymentClient {
-	if config.GetConfig().Environment == "development" {
+type CustomerPortalResponse struct {
+	Link string `json:"link"`
+}
+
+func NewDodoClient(apiKey string, test bool) PaymentClient {
+	if test {
 		return &DodoClient{
-			client: dodopayments.NewClient(
-				option.WithBearerToken(apiKey),
-				option.WithEnvironmentTestMode(),
-			),
-			webhookSecret: webhookSecret,
+			apiKey:  apiKey,
+			baseUrl: "https://test.dodopayments.com",
+			client:  &http.Client{},
 		}
 	}
-
 	return &DodoClient{
-		client:        dodopayments.NewClient(option.WithBearerToken(apiKey)),
-		webhookSecret: webhookSecret,
+		apiKey:  apiKey,
+		baseUrl: "https://live.dodopayments.com",
+		client:  &http.Client{},
 	}
 }
 
 func (dc *DodoClient) GetCustomerPortalSession(ctx context.Context, customerId string) (string, error) {
-	customer, err := dc.client.Customers.CustomerPortal.New(ctx, customerId, dodopayments.CustomerCustomerPortalNewParams{})
+	url := fmt.Sprintf("%s/customers/%s/customer-portal/session", dc.baseUrl, customerId)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-	return customer.Link, nil
+
+	// Set headers
+	req.Header.Set("Authorization", "Bearer "+dc.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Make the request
+	resp, err := dc.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var portalResponse CustomerPortalResponse
+	if err := json.NewDecoder(resp.Body).Decode(&portalResponse); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return portalResponse.Link, nil
 }

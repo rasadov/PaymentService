@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/rasadov/PaymentService/internal/config"
 	"github.com/rasadov/PaymentService/internal/db"
 	"github.com/rasadov/PaymentService/internal/handler"
@@ -13,7 +12,7 @@ import (
 )
 
 type App struct {
-	Engine *gin.Engine
+	Handler http.Handler
 }
 
 func New() (*App, error) {
@@ -29,34 +28,36 @@ func New() (*App, error) {
 
 	paymentClient := payments.NewDodoClient(
 		config.GetConfig().DodoAPIKey,
-		config.GetConfig().DodoWebhookSecret,
+		config.GetConfig().Environment == "development",
 	)
 
 	paymentService := services.NewPaymentService(storage, paymentClient)
 
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 
-	engine := gin.New()
-	handler.SetupRoutes(engine, paymentHandler)
+	mux := http.NewServeMux()
+	handler.SetupRoutes(mux, paymentHandler)
 
-	setupHealthChecks(engine)
+	setupHealthChecks(mux)
 
 	return &App{
-		Engine: engine,
+		Handler: mux,
 	}, nil
 }
 
-func setupHealthChecks(engine *gin.Engine) {
-	engine.GET("/health", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
+func setupHealthChecks(mux *http.ServeMux) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
-	engine.GET("/echo", func(c *gin.Context) {
-		b, err := io.ReadAll(c.Request.Body)
+	mux.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
+			http.Error(w, "Failed to read body", http.StatusBadRequest)
 			return
 		}
-		c.Data(http.StatusOK, "text/plain", b)
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write(b)
 	})
 }

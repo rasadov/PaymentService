@@ -13,5 +13,5 @@ func main() {
 		log.Fatal("Failed to initialize application:", err)
 	}
 
-	workers.Serve(application.Engine)
+	workers.Serve(application.Handler)
 }

@@ -1,12 +1,15 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/rasadov/PaymentService/internal/config"
 	"github.com/rasadov/PaymentService/internal/db"
 	"github.com/rasadov/PaymentService/internal/dto"
@@ -62,29 +65,74 @@ func (p *paymentService) SendWebhookDataToService(webhookId string, payload dto.
 		},
 	}
 
-	client := resty.New().
-		SetTimeout(30 * time.Second).
-		SetRetryCount(3).
-		SetRetryWaitTime(1 * time.Second).
-		SetRetryMaxWaitTime(10 * time.Second).
-		AddRetryCondition(func(r *resty.Response, err error) bool {
-			// Retry on network errors or 5xx status codes
-			return err != nil || r.StatusCode() >= 500
-		})
-
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("User-Agent", "PaymentService/1.0").
-		SetBody(response).
-		Post(config.GetConfig().PaymentCallbackUrl)
-
+	// Marshal the response to JSON
+	jsonData, err := json.Marshal(response)
 	if err != nil {
-		return fmt.Errorf("failed to send request after retries: %w", err)
+		return fmt.Errorf("failed to marshal response: %w", err)
 	}
 
-	if resp.StatusCode() < 200 || resp.StatusCode() >= 300 {
-		return fmt.Errorf("received non-2xx status code: %d, body: %s", resp.StatusCode(), resp.String())
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
 	}
 
-	return nil
+	// Retry logic
+	maxRetries := 3
+	baseWaitTime := 1 * time.Second
+	maxWaitTime := 10 * time.Second
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		// Create request
+		req, err := http.NewRequest("POST", config.GetConfig().PaymentCallbackUrl, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		// Set headers
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "PaymentService/1.0")
+
+		// Make request
+		resp, err := client.Do(req)
+		if err != nil {
+			// Retry on network errors
+			if attempt < maxRetries {
+				waitTime := time.Duration(attempt+1) * baseWaitTime
+				if waitTime > maxWaitTime {
+					waitTime = maxWaitTime
+				}
+				time.Sleep(waitTime)
+				continue
+			}
+			return fmt.Errorf("failed to send request after %d retries: %w", maxRetries, err)
+		}
+
+		// Read response body
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		// Check status code
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return nil // Success
+		}
+
+		// Retry on 5xx status codes
+		if resp.StatusCode >= 500 && attempt < maxRetries {
+			waitTime := time.Duration(attempt+1) * baseWaitTime
+			if waitTime > maxWaitTime {
+				waitTime = maxWaitTime
+			}
+			time.Sleep(waitTime)
+			continue
+		}
+
+		// Non-retryable error or max retries reached
+		bodyStr := "unable to read response"
+		if readErr == nil {
+			bodyStr = string(body)
+		}
+		return fmt.Errorf("received non-2xx status code: %d, body: %s", resp.StatusCode, bodyStr)
+	}
+
+	return fmt.Errorf("max retries exceeded")
 }
