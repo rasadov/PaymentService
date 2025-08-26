@@ -19,12 +19,29 @@ func NewPaymentHandler(service services.PaymentService) PaymentHandler {
 }
 
 func (h *paymentHandler) CreateCheckoutSession(c *gin.Context) {
+	var request dto.GetCheckoutUrlRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	url := h.service.CreateCheckoutSession(request.Email, request.Name, request.ProductID)
+	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
 func (h *paymentHandler) GetSubscriptionManagementLink(c *gin.Context) {
-}
+	var request dto.GetSubscriptionManagementLinkRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
 
-func (h *paymentHandler) GetSubscriptionStatus(c *gin.Context) {
+	url, err := h.service.GetSubscriptionManagementLink(request.CustomerId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get subscription management link"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
 func (h *paymentHandler) HandleWebhook(c *gin.Context) {
@@ -46,7 +63,13 @@ func (h *paymentHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	err = h.service.SendWebhookDataToService(payload)
+	webhookId := c.GetHeader("webhook-id")
+	if webhookId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing webhook-id header"})
+		return
+	}
+
+	err = h.service.SendWebhookDataToService(webhookId, payload)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
 		return

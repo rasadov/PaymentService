@@ -40,7 +40,17 @@ func (s *paymentService) GetSubscriptionManagementLink(customerId string) (strin
 	return s.paymentClient.GetCustomerPortalSession(ctx, customerId)
 }
 
-func (p *paymentService) SendWebhookDataToService(payload dto.DodoWebhookPayload) error {
+func (p *paymentService) SendWebhookDataToService(webhookId string, payload dto.DodoWebhookPayload) error {
+	// Check if already processed
+	if status, err := p.storage.Get(webhookId); err == nil && status == "processed" {
+		return nil
+	}
+
+	// Mark as processed immediately to prevent duplicates
+	if err := p.storage.PutWithExpiration(webhookId, "processed", 24*time.Hour); err != nil {
+		return fmt.Errorf("failed to mark webhook as processed: %w", err)
+	}
+
 	response := dto.PaymentProcessorResponse{
 		SubscriptionID: payload.Data.SubscriptionID,
 		Status:         payload.Data.Status,

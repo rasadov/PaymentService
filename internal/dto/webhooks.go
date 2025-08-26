@@ -7,7 +7,7 @@ type Customer struct {
 }
 
 // DodoWebhookPayload is the payload received from Dodo payments api
-// https://docs.dodopayments.com/developer-resources/webhooks/intents/subscription
+// https://docs.dodopayments.com/developer-resources/webhooks#request-body
 type DodoWebhookPayload struct {
 	EventType string `json:"type"`
 	Data      struct {
