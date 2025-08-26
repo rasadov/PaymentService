@@ -2,7 +2,7 @@
 
 A starter template for building Cloudflare Workers with Go. This template uses the [`workers`](https://github.com/syumai/workers) package to create HTTP servers that run on Cloudflare's edge network.
 
-![System Architecture](./architecture-diagram.png)
+![System Architecture](./diagram.png)
 
 ## What is this?
 
