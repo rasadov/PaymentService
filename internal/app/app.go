@@ -8,6 +8,7 @@ import (
 	"github.com/rasadov/PaymentService/internal/config"
 	"github.com/rasadov/PaymentService/internal/db"
 	"github.com/rasadov/PaymentService/internal/handler"
+	"github.com/rasadov/PaymentService/internal/payments"
 	"github.com/rasadov/PaymentService/internal/services"
 )
 
@@ -26,7 +27,12 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	paymentService := services.NewPaymentService(storage)
+	paymentClient := payments.NewDodoClient(
+		config.GetConfig().DodoAPIKey,
+		config.GetConfig().DodoWebhookSecret,
+	)
+
+	paymentService := services.NewPaymentService(storage, paymentClient)
 
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 

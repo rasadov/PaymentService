@@ -10,11 +10,13 @@ import (
 var settings Config
 
 type Config struct {
-	PaymentCallbackUrl string `envconfig:"PAYMENT_CALLBACK_URL" required:"true"`
-	DodoWebhookSecret  string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
-	DodoAPIKey         string `envconfig:"DODO_API_KEY" required:"true"`
-	DodoCheckoutURL    string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
-	KVNamespace        string `envconfig:"KV_NAMESPACE" required:"true"`
+	Environment             string `envconfig:"ENVIRONMENT" default:"development"`
+	PaymentCallbackUrl      string `envconfig:"PAYMENT_CALLBACK_URL" required:"true"`
+	DodoWebhookSecret       string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
+	DodoAPIKey              string `envconfig:"DODO_API_KEY" required:"true"`
+	DodoCheckoutURL         string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
+	DodoCheckoutRedirectUrl string `envconfig:"DODO_CHECKOUT_REDIRECT_URL" required:"true"`
+	KVNamespace             string `envconfig:"KV_NAMESPACE" required:"true"`
 }
 
 func LoadConfig() error {

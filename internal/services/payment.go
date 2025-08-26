@@ -1,33 +1,43 @@
 package services
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/rasadov/PaymentService/internal/config"
 	"github.com/rasadov/PaymentService/internal/db"
 	"github.com/rasadov/PaymentService/internal/dto"
+	"github.com/rasadov/PaymentService/internal/payments"
 )
 
 type paymentService struct {
-	storage db.Storage
+	storage       db.Storage
+	paymentClient payments.PaymentClient
 }
 
-func NewPaymentService(storage db.Storage) PaymentService {
-	return &paymentService{storage: storage}
+func NewPaymentService(storage db.Storage, paymentClient payments.PaymentClient) PaymentService {
+	return &paymentService{storage: storage, paymentClient: paymentClient}
 }
 
-func (p *paymentService) CreateCheckoutSession() (string, error) {
-	return "", nil
+func (s *paymentService) CreateCheckoutSession(email, name, productID string) string {
+	checkoutURL := fmt.Sprintf(config.GetConfig().DodoCheckoutURL,
+		productID,
+		url.QueryEscape(email),
+		url.QueryEscape(name),
+		url.QueryEscape(config.GetConfig().DodoCheckoutRedirectUrl),
+	)
+
+	return checkoutURL
 }
 
-func (p *paymentService) GetSubscriptionManagementLink() (string, error) {
-	return "", nil
-}
+func (s *paymentService) GetSubscriptionManagementLink(customerId string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-func (p *paymentService) GetSubscriptionStatus() (string, error) {
-	return "", nil
+	return s.paymentClient.GetCustomerPortalSession(ctx, customerId)
 }
 
 func (p *paymentService) SendWebhookDataToService(payload dto.DodoWebhookPayload) error {

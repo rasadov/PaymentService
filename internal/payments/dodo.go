@@ -10,7 +10,6 @@ import (
 
 type PaymentClient interface {
 	GetCustomerPortalSession(ctx context.Context, customerId string) (string, error)
-	CreateCustomer(ctx context.Context, email, name string) (string, error)
 }
 
 type DodoClient struct {
@@ -41,16 +40,4 @@ func (dc *DodoClient) GetCustomerPortalSession(ctx context.Context, customerId s
 		return "", err
 	}
 	return customer.Link, nil
-}
-
-func (dc *DodoClient) CreateCustomer(ctx context.Context, email, name string) (string, error) {
-	customer, err := dc.client.Customers.New(ctx, dodopayments.CustomerNewParams{
-		Email: dodopayments.F(email),
-		Name:  dodopayments.F(name),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return customer.CustomerID, nil
 }
