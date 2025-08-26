@@ -18,7 +18,6 @@ type App struct {
 func New() (*App, error) {
 	mux := http.NewServeMux()
 
-	// Always setup health checks first
 	setupHealthChecks(mux)
 
 	// Try to load config - if it fails, only serve health endpoints
