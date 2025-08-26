@@ -16,14 +16,22 @@ type App struct {
 }
 
 func New() (*App, error) {
+	mux := http.NewServeMux()
+
+	// Always setup health checks first
+	setupHealthChecks(mux)
+
+	// Try to load config - if it fails, only serve health endpoints
 	err := config.LoadConfig()
 	if err != nil {
-		return nil, err
+		setupErrorHandler(mux, "Configuration error: "+err.Error())
+		return &App{Handler: mux}, nil
 	}
 
 	storage, err := db.GetConnection()
 	if err != nil {
-		return nil, err
+		setupErrorHandler(mux, "Database connection error: "+err.Error())
+		return &App{Handler: mux}, nil
 	}
 
 	paymentClient := payments.NewDodoClient(
@@ -32,17 +40,22 @@ func New() (*App, error) {
 	)
 
 	paymentService := services.NewPaymentService(storage, paymentClient)
-
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 
-	mux := http.NewServeMux()
 	handler.SetupRoutes(mux, paymentHandler)
 
-	setupHealthChecks(mux)
+	return &App{Handler: mux}, nil
+}
 
-	return &App{
-		Handler: mux,
-	}, nil
+func setupErrorHandler(mux *http.ServeMux, errorMsg string) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" || r.URL.Path == "/echo" {
+			return // Let health checks handle these
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(`{"error": "` + errorMsg + `"}`))
+	})
 }
 
 func setupHealthChecks(mux *http.ServeMux) {
