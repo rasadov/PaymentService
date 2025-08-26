@@ -13,7 +13,7 @@ type Config struct {
 	DodoWebhookSecret string `envconfig:"DODO_WEBHOOK_SECRET" required:"true"`
 	DodoAPIKey        string `envconfig:"DODO_API_KEY" required:"true"`
 	DodoCheckoutURL   string `envconfig:"DODO_CHECKOUT_URL" required:"true"`
-	RedisURL          string `envconfig:"REDIS_URL" required:"true"`
+	KVNamespace       string `envconfig:"KV_NAMESPACE" required:"true"`
 }
 
 func LoadConfig() error {
@@ -34,8 +34,8 @@ func (c Config) validate() error {
 	if !isValidURL(c.DodoCheckoutURL) {
 		return fmt.Errorf("DODO_CHECKOUT_URL is invalid: %s", c.DodoCheckoutURL)
 	}
-	if !isValidURL(c.RedisURL) {
-		return fmt.Errorf("REDIS_URL is invalid: %s", c.RedisURL)
+	if len(c.KVNamespace) < 4 {
+		return fmt.Errorf("KV_NAMESPACE is too short")
 	}
 	if len(c.DodoWebhookSecret) < 8 {
 		return fmt.Errorf("DODO_WEBHOOK_SECRET is too short")
@@ -47,5 +47,5 @@ func (c Config) validate() error {
 }
 
 func isValidURL(url string) bool {
-	return len(url) > 0 && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "redis://"))
+	return len(url) > 0 && strings.HasPrefix(url, "https://")
 }
