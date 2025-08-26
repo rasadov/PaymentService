@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/gin-gonic/gin v1.10.1
+	github.com/go-resty/resty/v2 v2.16.5
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/syumai/workers v0.30.2
 )
