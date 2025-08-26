@@ -5,20 +5,27 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/syumai/workers"
+
+	"github.com/rasadov/PaymentService/internal/config"
 )
 
 func main() {
-	http.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
-		msg := "Hello!"
-		w.Write([]byte(msg))
+	err := config.LoadConfig()
+	if err != nil {
+		panic(err)
+	}
+	engine := gin.New()
+	engine.GET("/hello", func(c *gin.Context) {
+		c.String(http.StatusOK, "Hello!")
 	})
-	http.HandleFunc("/echo", func(w http.ResponseWriter, req *http.Request) {
-		b, err := io.ReadAll(req.Body)
+	engine.GET("/echo", func(c *gin.Context) {
+		b, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			panic(err)
 		}
-		io.Copy(w, bytes.NewReader(b))
+		io.Copy(c.Writer, bytes.NewReader(b))
 	})
-	workers.Serve(nil) // use http.DefaultServeMux
+	workers.Serve(engine)
 }
