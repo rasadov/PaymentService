@@ -3,9 +3,6 @@ info:
   title: Payment Service API
   description: A lightweight payment service for handling checkout sessions, subscription management, and webhooks
   version: 1.0.0
-  contact:
-    name: Payment Service Team
-    email: support@example.com
 
 servers:
   - url: http://localhost:8080
@@ -15,6 +12,8 @@ paths:
   /checkout:
     post:
       summary: Create Checkout Session
+      tags:
+        - Checkout
       description: Creates a new checkout session for a customer to purchase a product
       requestBody:
         required: true
@@ -53,6 +52,8 @@ paths:
   /subscriptions:
     post:
       summary: Get Subscription Management Link
+      tags:
+        - Subscriptions
       description: Retrieves a link for customers to manage their subscription
       requestBody:
         required: true
@@ -96,6 +97,8 @@ paths:
   /webhook:
     post:
       summary: Handle Payment Webhook
+      tags:
+        - Webhooks
       description: Processes webhook events from Dodo Payments
       parameters:
         - name: webhook-signature
