@@ -20,32 +20,19 @@ func NewPaymentHandler(service services.PaymentService) PaymentHandler {
 	return &paymentHandler{service: service}
 }
 
-// CreateCheckoutSession creates a new checkout session for a customer to purchase a product.
-// It accepts a POST request with customer email, name, and product ID.
+// CreateCheckoutSession creates a new checkout session for a customer to purchase products
 //
-// Request body:
-//
-//	{
-//	  "customer": {
-//		"email": "customer@example.com",
-//		"name": "John Doe"
-//	  },
-//	  "product_cart": [
-//		{
-//			"quantity": 1,
-//			"product_id": "prod_123456"
-//		}
-//	  ],
-//	  "metadata": {
-//		"key": "value"
-//	  }
-//	}
-//
-// Response:
-//
-//	{
-//	  "url": "https://checkout.dodopayments.com/session_abc123"
-//	}
+//	@Summary		Create checkout session
+//	@Description	Creates a new checkout session for a customer to purchase products
+//	@Tags			payments
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body	dto.GetCheckoutUrlRequest	true	"Checkout request"
+//	@Success		200	{object}	dto.UrlResponse	"Checkout URL"
+//	@Failure		400	{string}	string	"Bad request"
+//	@Failure		405	{string}	string	"Method not allowed"
+//	@Failure		500	{string}	string	"Internal server error"
+//	@Router			/checkout [post]
 func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -69,26 +56,25 @@ func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Failed to create checkout session", http.StatusInternalServerError)
 		return
 	}
-	response := map[string]string{"url": url}
+	response := dto.UrlResponse{Url: url}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetSubscriptionManagementLink retrieves a link for customers to manage their subscription.
-// It accepts a POST request with the customer ID.
+// GetSubscriptionManagementLink retrieves a link for customers to manage their subscription
 //
-// Request body:
-//
-//	{
-//	  "customer_id": "cus_123456789"
-//	}
-//
-// Response:
-//
-//	{
-//	  "url": "https://billing.dodopayments.com/manage/cus_123456789"
-//	}
+//	@Summary		Get subscription management link
+//	@Description	Retrieves a link for customers to manage their subscription
+//	@Tags			subscriptions
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body	dto.GetSubscriptionManagementLinkRequest	true	"Customer ID request"
+//	@Success		200	{object}	dto.UrlResponse	"Management URL"
+//	@Failure		400	{string}	string	"Bad request"
+//	@Failure		405	{string}	string	"Method not allowed"
+//	@Failure		500	{string}	string	"Internal server error"
+//	@Router			/subscriptions [post]
 func (h *paymentHandler) GetSubscriptionManagementLink(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -113,25 +99,27 @@ func (h *paymentHandler) GetSubscriptionManagementLink(w http.ResponseWriter, r 
 		return
 	}
 
-	response := map[string]string{"url": url}
+	response := dto.UrlResponse{Url: url}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-// HandleWebhook processes webhook events from Dodo Payments.
-// It verifies the webhook signature and forwards the data to the configured service.
+// HandleWebhook processes webhook events from Dodo Payments
 //
-// Required headers:
-//   - webhook-signature: Webhook signature for verification
-//   - webhook-id: Unique webhook identifier
-//
-// Request body: DodoWebhookPayload with event type and subscription data
-//
-// Response:
-//
-//	{
-//	  "message": "Webhook processed"
-//	}
+//	@Summary		Handle webhook
+//	@Description	Processes webhook events from Dodo Payments and forwards data to configured service
+//	@Tags			webhooks
+//	@Accept			json
+//	@Produce		json
+//	@Param			webhook-signature	header	string	true	"Webhook signature for verification"
+//	@Param			webhook-id	header	string	true	"Unique webhook identifier"
+//	@Param			payload	body	dto.DodoWebhookPayload	true	"Webhook payload"
+//	@Success		200	{object}	map[string]string	"Success message"
+//	@Failure		400	{string}	string	"Bad request"
+//	@Failure		401	{string}	string	"Invalid signature"
+//	@Failure		405	{string}	string	"Method not allowed"
+//	@Failure		500	{string}	string	"Internal server error"
+//	@Router			/webhook [post]
 func (h *paymentHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

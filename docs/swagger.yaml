@@ -1,0 +1,201 @@
+basePath: /
+definitions:
+  dto.DodoWebhookPayload:
+    properties:
+      data:
+        properties:
+          customer:
+            $ref: '#/definitions/models.Customer'
+          metadata:
+            additionalProperties: {}
+            type: object
+          product_id:
+            type: string
+          status:
+            type: string
+          subscription_id:
+            type: string
+        type: object
+      type:
+        type: string
+    type: object
+  dto.GetCheckoutUrlRequest:
+    properties:
+      customer:
+        $ref: '#/definitions/models.CustomerInput'
+      metadata:
+        additionalProperties: {}
+        type: object
+      product_cart:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+    type: object
+  dto.GetSubscriptionManagementLinkRequest:
+    properties:
+      customer_id:
+        type: string
+    type: object
+  dto.UrlResponse:
+    properties:
+      url:
+        type: string
+    type: object
+  models.Customer:
+    properties:
+      customer_id:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+    type: object
+  models.CustomerInput:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    type: object
+  models.Product:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: A payment processing service that handles checkout sessions, subscription
+    management, and webhooks
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Payment Service API
+  version: "1.0"
+paths:
+  /checkout:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new checkout session for a customer to purchase products
+      parameters:
+      - description: Checkout request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetCheckoutUrlRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Checkout URL
+          schema:
+            $ref: '#/definitions/dto.UrlResponse'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "405":
+          description: Method not allowed
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Create checkout session
+      tags:
+      - payments
+  /subscriptions:
+    post:
+      consumes:
+      - application/json
+      description: Retrieves a link for customers to manage their subscription
+      parameters:
+      - description: Customer ID request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetSubscriptionManagementLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Management URL
+          schema:
+            $ref: '#/definitions/dto.UrlResponse'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "405":
+          description: Method not allowed
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get subscription management link
+      tags:
+      - subscriptions
+  /webhook:
+    post:
+      consumes:
+      - application/json
+      description: Processes webhook events from Dodo Payments and forwards data to
+        configured service
+      parameters:
+      - description: Webhook signature for verification
+        in: header
+        name: webhook-signature
+        required: true
+        type: string
+      - description: Unique webhook identifier
+        in: header
+        name: webhook-id
+        required: true
+        type: string
+      - description: Webhook payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DodoWebhookPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "401":
+          description: Invalid signature
+          schema:
+            type: string
+        "405":
+          description: Method not allowed
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Handle webhook
+      tags:
+      - webhooks
+schemes:
+- https
+- http
+swagger: "2.0"
