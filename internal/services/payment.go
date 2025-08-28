@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/rasadov/PaymentService/internal/config"
 	"github.com/rasadov/PaymentService/internal/db"
 	"github.com/rasadov/PaymentService/internal/dto"
+	"github.com/rasadov/PaymentService/internal/models"
 	"github.com/rasadov/PaymentService/internal/payments"
 )
 
@@ -25,15 +25,10 @@ func NewPaymentService(storage db.Storage, paymentClient payments.PaymentClient)
 	return &paymentService{storage: storage, paymentClient: paymentClient}
 }
 
-func (s *paymentService) CreateCheckoutSession(email, name, productID string) string {
-	checkoutURL := fmt.Sprintf(config.GetConfig().DodoCheckoutURL,
-		productID,
-		url.QueryEscape(email),
-		url.QueryEscape(name),
-		url.QueryEscape(config.GetConfig().DodoCheckoutRedirectUrl),
-	)
-
-	return checkoutURL
+func (s *paymentService) CreateCheckoutSession(customer models.CustomerInput, products []models.Product, metadata map[string]any) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return s.paymentClient.CreateCheckoutSession(ctx, customer, products, metadata)
 }
 
 func (s *paymentService) GetSubscriptionManagementLink(customerId string) (string, error) {
@@ -58,11 +53,12 @@ func (p *paymentService) SendWebhookDataToService(webhookId string, payload dto.
 		SubscriptionID: payload.Data.SubscriptionID,
 		Status:         payload.Data.Status,
 		ProductID:      payload.Data.ProductID,
-		Customer: dto.Customer{
-			CustomerID: payload.Data.Customer.CustomerID,
+		Customer: models.Customer{
+			CustomerId: payload.Data.Customer.CustomerId,
 			Email:      payload.Data.Customer.Email,
 			Name:       payload.Data.Customer.Name,
 		},
+		Metadata: payload.Data.Metadata,
 	}
 
 	// Marshal the response to JSON

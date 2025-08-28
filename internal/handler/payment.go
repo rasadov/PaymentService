@@ -24,16 +24,28 @@ func NewPaymentHandler(service services.PaymentService) PaymentHandler {
 // It accepts a POST request with customer email, name, and product ID.
 //
 // Request body:
-//   {
-//     "email": "customer@example.com",
-//     "name": "John Doe",
-//     "product_id": "prod_123456"
-//   }
+//
+//	{
+//	  "customer": {
+//		"email": "customer@example.com",
+//		"name": "John Doe"
+//	  },
+//	  "product_cart": [
+//		{
+//			"quantity": 1,
+//			"product_id": "prod_123456"
+//		}
+//	  ],
+//	  "metadata": {
+//		"key": "value"
+//	  }
+//	}
 //
 // Response:
-//   {
-//     "url": "https://checkout.dodopayments.com/session_abc123"
-//   }
+//
+//	{
+//	  "url": "https://checkout.dodopayments.com/session_abc123"
+//	}
 func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -52,7 +64,11 @@ func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	url := h.service.CreateCheckoutSession(request.Email, request.Name, request.ProductID)
+	url, err := h.service.CreateCheckoutSession(request.Customer, request.ProductCart, request.Metadata)
+	if err != nil {
+		http.Error(w, "Failed to create checkout session", http.StatusInternalServerError)
+		return
+	}
 	response := map[string]string{"url": url}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -63,14 +79,16 @@ func (h *paymentHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Re
 // It accepts a POST request with the customer ID.
 //
 // Request body:
-//   {
-//     "customer_id": "cus_123456789"
-//   }
+//
+//	{
+//	  "customer_id": "cus_123456789"
+//	}
 //
 // Response:
-//   {
-//     "url": "https://billing.dodopayments.com/manage/cus_123456789"
-//   }
+//
+//	{
+//	  "url": "https://billing.dodopayments.com/manage/cus_123456789"
+//	}
 func (h *paymentHandler) GetSubscriptionManagementLink(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -110,9 +128,10 @@ func (h *paymentHandler) GetSubscriptionManagementLink(w http.ResponseWriter, r 
 // Request body: DodoWebhookPayload with event type and subscription data
 //
 // Response:
-//   {
-//     "message": "Webhook processed"
-//   }
+//
+//	{
+//	  "message": "Webhook processed"
+//	}
 func (h *paymentHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
